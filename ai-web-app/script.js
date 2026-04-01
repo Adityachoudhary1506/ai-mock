@@ -483,7 +483,7 @@ async function generateFinalReport() {
   if (lateConfident > earlyNervous && lateConfident > 0) psychologicalTrend = "Candidate started nervous, but displayed excellent recovery and gained strong confidence over time!";
   if (counts.Confident / total > 0.8) psychologicalTrend = "Candidate remained highly confident and composed throughout the entire session.";
 
-  const API_KEY = "removed";
+  const API_KEY = "AIzaSyBRq0QSZKzxU9e91Ic1EMU_idKuWmaC5f8";
   
   try {
     const response = await fetch(
@@ -612,7 +612,7 @@ async function generateResponse() {
 
   if (!prompt) return;
 
-  const API_KEY = "removed";
+  const API_KEY = "AIzaSyBRq0QSZKzxU9e91Ic1EMU_idKuWmaC5f8";
 
   const originalBtnText = button.innerHTML;
   button.innerHTML = '<span>Generating AI Audio...</span> <span class="loading"></span>';
