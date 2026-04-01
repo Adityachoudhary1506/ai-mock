@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Mock Interview App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <meta name="description" content="A premium AI mock interview application with real-time emotion tracking.">
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+</head>
+<body>
+  <div class="main-wrapper">
+    <!-- Camera & Emotion HUD -->
+    <div class="webcam-panel panel">
+      <header>
+        <h2>Interview Camera</h2>
+        <p id="cam-status">Model Loading...</p>
+      </header>
+
+      <div id="warning-banner" class="warning-banner hidden">
+        ⚠️ Multiple people detected. This is considered cheating.
+      </div>
+
+      <div class="video-container">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="canvas"></canvas>
+      </div>
+
+      <div class="status-hud">
+        <div class="hud-item">
+          <span class="hud-label">Faces:</span>
+          <span id="faces-text" class="hud-value">0</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Emotion:</span>
+          <span id="emotion-text" class="hud-value">--</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Status:</span>
+          <span id="confidence-text" class="hud-value">--</span>
+        </div>
+      </div>
+
+      <div class="debug-panel hidden" id="debug-panel">
+        🛡️ Proctor Debug: Raw: <span id="debug-raw">0</span> | Filtered: <span id="debug-filtered">0</span> | Max Conf: <span id="debug-conf">0.00</span>
+      </div>
+
+      <div class="controls">
+        <button id="start-interview-btn" onclick="startInterview()" disabled>Start Interview</button>
+        <button id="end-interview-btn" class="danger" onclick="endInterview()" disabled>End Interview</button>
+        <button id="show-report-btn" class="hidden" onclick="showReportModal()">Show Report</button>
+      </div>
+    </div>
+
+    <!-- AI Chat Panel -->
+    <div class="chat-panel panel">
+      <header style="display: flex; justify-content: space-between; align-items: center; text-align: left;">
+        <div>
+          <h1>AI Interviewer</h1>
+          <p>Powered by Gemini & face-api.js</p>
+          <div id="interview-context" class="q-tracker hidden" style="margin-top: 8px; padding: 4px 12px; font-size: 0.85rem; max-width: max-content;">
+            <span id="display-role">Role</span> • <span id="display-difficulty">Difficulty</span>
+          </div>
+        </div>
+        <div class="q-tracker hidden" id="q-tracker">
+          Question <span id="q-current">1</span> of 5
+        </div>
+      </header>
+
+      <div class="input-section">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <select id="domain" class="domain-select" onchange="handleDomainChange()">
+            <option value="" disabled selected>Select Role / Domain</option>
+            <option value="Web Development">Web Development</option>
+            <option value="Data Structures & Algorithms">Data Structures & Algorithms</option>
+            <option value="Machine Learning">Machine Learning</option>
+            <option value="Artificial Intelligence">Artificial Intelligence</option>
+            <option value="Cybersecurity">Cybersecurity</option>
+            <option value="Cloud Computing">Cloud Computing</option>
+            <option value="Mobile App Development">Mobile App Development</option>
+            <option value="UI/UX Design">UI/UX Design</option>
+            <option value="Database Management">Database Management</option>
+            <option value="DevOps">DevOps</option>
+            <option value="HR / Behavioral">HR / Behavioral</option>
+            <option value="Other">Other (Custom Role)</option>
+          </select>
+          <input type="text" id="custom-role" class="custom-input hidden" placeholder="Enter custom role (e.g., React Developer)" oninput="validateSetup()" />
+          
+          <select id="difficulty" class="domain-select" onchange="validateSetup()">
+            <option value="" disabled selected>Select Difficulty</option>
+            <option value="Beginner">Beginner</option>
+            <option value="Intermediate">Intermediate</option>
+            <option value="Professional">Professional</option>
+          </select>
+        </div>
+
+        <div id="ai-question-card" class="output-section" style="margin-bottom: 20px; border-color: rgba(96, 165, 250, 0.4); background: rgba(15, 23, 42, 0.7);">
+          <h3 style="display: flex; align-items: center; gap: 8px; color: #60a5fa;">
+            <span class="icon" id="ai-speaking-indicator">🤖</span> <span id="ai-speaking-text">Current AI Question</span>
+          </h3>
+          <div id="output" style="font-size: 1.15rem; font-weight: 500; font-style: italic; margin-top: 10px;">Select your domain and difficulty to begin...</div>
+        </div>
+
+        <div id="user-answer-card" class="output-section" style="margin-bottom: 20px; border-color: rgba(167, 139, 250, 0.4); background: rgba(15, 23, 42, 0.7);">
+          <h3 style="display: flex; align-items: center; gap: 8px; color: #a78bfa;">
+            <span class="icon">🎙️</span> Your Answer
+          </h3>
+          <textarea id="prompt" placeholder="Say hello to start the interview..." style="border: none; background: rgba(0,0,0,0.2); margin-top: 10px;"></textarea>
+          
+          <div class="voice-controls" style="margin-top: 16px;">
+            <button id="speak-btn" class="speak-btn" onclick="startRecording()" disabled>
+              <span class="icon">🎤</span> <span id="speak-btn-text">Answer Question</span>
+            </button>
+            <button id="stop-btn" class="stop-btn hidden" onclick="stopRecording()">
+              <span class="icon">⏹️</span> Finish Answering
+            </button>
+            <div id="listening-indicator" class="listening-indicator hidden">
+              <span class="pulse-dot"></span> Listening...
+            </div>
+          </div>
+        </div>
+
+        <div id="feedback-card" class="output-section hidden" style="border-color: rgba(250, 204, 21, 0.4); background: rgba(15, 23, 42, 0.7);">
+          <h3 style="display: flex; align-items: center; gap: 8px; color: #facc15;">
+            <span class="icon">📊</span> Previous Answer Feedback
+          </h3>
+          <div style="margin-top: 10px;">
+            <p><strong>Score:</strong> <span id="eval-score">--</span>/10 <span id="eval-pill"></span></p>
+            <p><strong>Feedback:</strong> <span id="eval-feedback">--</span></p>
+            <p><strong>Improvement:</strong> <span id="eval-improvement">--</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Interview Report Modal -->
+  <div id="report-modal" class="modal hidden">
+    <div class="modal-content" style="max-width: 800px;">
+      <h2>Interview Final Report</h2>
+      <div id="report-details"></div>
+      <button onclick="closeModal()">Close</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
